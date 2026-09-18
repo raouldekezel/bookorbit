@@ -42,6 +42,7 @@ const xmpParser = new XMLParser({
   textNodeName: '#text',
   allowBooleanAttributes: true,
   parseTagValue: false, // keep all values as strings — prevents leading-zero loss on ISBNs
+  htmlEntities: true, // numeric character references such as &#39; are only resolved with this on
 });
 
 export function extractXmpXml(doc: PDFDocument): string | null {

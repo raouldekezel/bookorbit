@@ -29,6 +29,14 @@ beforeEach(() => {
 });
 
 describe('parseFb2File', () => {
+  describe('BUG-01: character references', () => {
+    it('resolves references in the book title', async () => {
+      mockReadFile.mockResolvedValue(fb2Buffer('<book-title>L&#39;&#xC9;tranger</book-title>'));
+      const r = await parseFb2File('/book.fb2');
+      expect(r?.title).toBe("L'Étranger");
+    });
+  });
+
   describe('title', () => {
     it('extracts book title', async () => {
       mockReadFile.mockResolvedValue(fb2Buffer('<book-title>War and Peace</book-title>'));

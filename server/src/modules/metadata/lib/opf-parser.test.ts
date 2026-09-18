@@ -41,6 +41,29 @@ function epub3OpfFull(parts: { metadata?: string; manifest?: string }): string {
 }
 
 describe('parseOpf', () => {
+  describe('BUG-01: character references', () => {
+    it('resolves references in dc:title and dc:creator', () => {
+      const r = parseOpf(epub3Opf('<dc:title>L&#39;&#xC9;tranger</dc:title><dc:creator>Flann O&#39;Brien</dc:creator>'));
+      expect(r.title).toBe("L'Étranger");
+      expect(r.authors.map((a) => a.name)).toEqual(["Flann O'Brien"]);
+    });
+
+    it('resolves references in meta attribute values', () => {
+      const r = parseOpf(
+        epub2Opf(`
+        <meta name="calibre:series" content="L&#39;Assassin royal"/>
+        <meta name="calibre:series_index" content="1"/>
+      `),
+      );
+      expect(r.seriesName).toBe("L'Assassin royal");
+    });
+
+    it('decodes an escaped HTML description exactly once', () => {
+      const r = parseOpf(epub3Opf('<dc:description>&lt;p&gt;l&amp;apos;homme &amp;amp; la mer&lt;/p&gt;</dc:description>'));
+      expect(r.description).toBe('<p>l&apos;homme &amp; la mer</p>');
+    });
+  });
+
   describe('custom metadata', () => {
     it('parses BookOrbit custom metadata from named and property meta tags', () => {
       const xml = epub3Opf(`
