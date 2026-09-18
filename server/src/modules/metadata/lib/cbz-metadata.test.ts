@@ -100,6 +100,17 @@ function mockZipFile(buf: Buffer): void {
 beforeEach(() => vi.resetAllMocks());
 
 describe('extractCbzMetadata', () => {
+  describe('BUG-01: character references', () => {
+    it('resolves references in ComicInfo.xml fields', async () => {
+      const xml = `<ComicInfo><Title>L&#39;Incal</Title><Writer>Flann O&#39;Brien</Writer></ComicInfo>`;
+      mockZipFile(buildZipWithComicInfo(xml));
+
+      const r = await extractCbzMetadata('/book.cbz');
+      expect(r?.title).toBe("L'Incal");
+      expect(r?.authors.map((a) => a.name)).toEqual(["Flann O'Brien"]);
+    });
+  });
+
   describe('ComicInfo.xml parsing', () => {
     it('extracts title from ComicInfo.xml', async () => {
       const xml = `<ComicInfo><Title>My Comic</Title></ComicInfo>`;

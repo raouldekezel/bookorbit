@@ -11,6 +11,7 @@ const parser = new XMLParser({
   attributeNamePrefix: '@_',
   removeNSPrefix: true,
   textNodeName: '#text',
+  htmlEntities: true, // numeric character references such as &#39; are only resolved with this on
 });
 
 function text(val: unknown): string | null {

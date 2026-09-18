@@ -18,6 +18,52 @@ function xmpDoc(body: string): string {
 }
 
 describe('parseXmp', () => {
+  describe('BUG-01: character references', () => {
+    it('resolves decimal and hexadecimal references in dc:title', () => {
+      const r = parseXmp(
+        xmpDoc(`
+        <dc:title>
+          <rdf:Alt>
+            <rdf:li xml:lang="x-default">Saveurs de France - L&#39;Auvergne d&#x27;hier, caf&#233;</rdf:li>
+          </rdf:Alt>
+        </dc:title>
+      `),
+      );
+      expect(r?.title).toBe("Saveurs de France - L'Auvergne d'hier, café");
+    });
+
+    it('resolves references in dc:description', () => {
+      const r = parseXmp(xmpDoc('<dc:description>La gastronomie de l&#39;Auvergne.</dc:description>'));
+      expect(r?.description).toBe("La gastronomie de l'Auvergne.");
+    });
+
+    it('resolves references in dc:creator and dc:subject lists', () => {
+      const r = parseXmp(
+        xmpDoc(`
+        <dc:creator><rdf:Seq><rdf:li>Genevi&#232;ve O&#39;Gleman</rdf:li></rdf:Seq></dc:creator>
+        <dc:subject><rdf:Bag><rdf:li>Cuisine d&#39;ici</rdf:li></rdf:Bag></dc:subject>
+      `),
+      );
+      expect(r?.authors).toEqual([{ name: "Geneviève O'Gleman", sortName: null }]);
+      expect(r?.genres).toEqual(["Cuisine d'ici"]);
+    });
+
+    it('resolves references outside the Basic Multilingual Plane', () => {
+      const r = parseXmp(xmpDoc('<dc:title>Emoji &#128512;</dc:title>'));
+      expect(r?.title).toBe('Emoji \u{1F600}');
+    });
+
+    it('keeps an escaped reference literal instead of decoding it twice', () => {
+      const r = parseXmp(xmpDoc('<dc:title>Write &amp;#39; for an apostrophe</dc:title>'));
+      expect(r?.title).toBe('Write &#39; for an apostrophe');
+    });
+
+    it('still preserves leading zeros on ISBNs', () => {
+      const r = parseXmp(xmpDoc(`<${BOOKORBIT_NS_PREFIX}:isbn10>0441013597</${BOOKORBIT_NS_PREFIX}:isbn10>`));
+      expect(r?.isbn10).toBe('0441013597');
+    });
+  });
+
   describe('dc: namespace fields', () => {
     it('parses dc:title as plain string', () => {
       const r = parseXmp(xmpDoc('<dc:title>Dune</dc:title>'));

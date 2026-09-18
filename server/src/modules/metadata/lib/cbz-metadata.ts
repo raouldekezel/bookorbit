@@ -58,7 +58,12 @@ export interface ParsedCbzMetadata {
 
 // ── Parsers ───────────────────────────────────────────────────────────────────
 
-const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', parseTagValue: false });
+const xmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  parseTagValue: false,
+  htmlEntities: true, // numeric character references such as &#39; are only resolved with this on
+});
 
 function splitDelimited(value: string | null | undefined): string[] {
   if (!value) return [];

@@ -68,6 +68,7 @@ const parser = new XMLParser({
   textNodeName: '#text',
   allowBooleanAttributes: true,
   parseTagValue: false, // keep all values as strings to preserve ISBNs with leading zeroes
+  htmlEntities: true, // numeric character references such as &#39; are only resolved with this on
 });
 
 function toArray<T>(val: T | T[] | undefined): T[] {
