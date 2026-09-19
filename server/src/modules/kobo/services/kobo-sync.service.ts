@@ -20,6 +20,7 @@ import { KoboReadingStateService } from './kobo-reading-state.service';
 import { encodeSyncToken } from './kobo-sync-token';
 
 type Db = NodePgDatabase<typeof schema>;
+type DbExecutor = Pick<Db, 'query' | 'update' | 'delete'>;
 
 // A device pauses between sync rounds, so wall-clock time for a long delta tracks the number of
 // round trips rather than the work inside each one: at five books a page, re-announcing a few
@@ -175,21 +176,64 @@ export class KoboSyncService {
     return [this.buildBookMetadata(book, deviceToken, baseUrl)];
   }
 
-  async removeBookFromSync(userId: number, deviceId: number, bookId: number): Promise<void> {
+  /**
+   * Records a book deleted on the device and, when asked to, takes it out of every collection the
+   * user syncs to Kobo so it stops being eligible. Returns how many collections lost the book.
+   */
+  async removeBookFromDevice(userId: number, deviceId: number, bookId: number, removeFromSyncedCollections: boolean): Promise<number> {
+    if (!removeFromSyncedCollections) {
+      await this.removeBookFromSync(userId, deviceId, bookId);
+      return 0;
+    }
+
+    const event = 'kobo.device_remove_book';
+    const startedAt = Date.now();
+    this.logger.log(`[${event}] [start] userId=${userId} deviceId=${deviceId} bookId=${bookId} - device removal started`);
+    try {
+      const collectionsRemoved = await this.removeBookFromSyncAndCollections(userId, deviceId, bookId);
+      this.logger.log(
+        `[${event}] [end] userId=${userId} deviceId=${deviceId} bookId=${bookId} durationMs=${Date.now() - startedAt} collectionsRemoved=${collectionsRemoved} - device removal completed`,
+      );
+      return collectionsRemoved;
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.warn(
+        `[${event}] [fail] userId=${userId} deviceId=${deviceId} bookId=${bookId} durationMs=${Date.now() - startedAt} errorClass=${err.constructor.name} error="${sanitizeLogValue(err.message)}" - device removal failed`,
+      );
+      throw error;
+    }
+  }
+
+  private removeBookFromSyncAndCollections(userId: number, deviceId: number, bookId: number): Promise<number> {
+    return this.db.transaction(async (tx) => {
+      await this.removeBookFromSync(userId, deviceId, bookId, tx);
+      const syncedCollectionIds = tx
+        .select({ id: schema.collections.id })
+        .from(schema.collections)
+        .where(and(eq(schema.collections.userId, userId), eq(schema.collections.syncToKobo, true)));
+      const removed = await tx
+        .delete(schema.collectionBooks)
+        .where(and(eq(schema.collectionBooks.bookId, bookId), inArray(schema.collectionBooks.collectionId, syncedCollectionIds)))
+        .returning({ collectionId: schema.collectionBooks.collectionId });
+      return removed.length;
+    });
+  }
+
+  async removeBookFromSync(userId: number, deviceId: number, bookId: number, executor: DbExecutor = this.db): Promise<void> {
     const snapshot = await this.findDeviceSnapshot(userId, deviceId);
     if (!snapshot) return;
 
-    const row = await this.db.query.koboSnapshotBooks.findFirst({
+    const row = await executor.query.koboSnapshotBooks.findFirst({
       where: and(eq(schema.koboSnapshotBooks.snapshotId, snapshot.id), eq(schema.koboSnapshotBooks.bookId, bookId)),
     });
     if (!row) return;
 
     if (row.pendingDelete) {
-      await this.db
+      await executor
         .delete(schema.koboSnapshotBooks)
         .where(and(eq(schema.koboSnapshotBooks.snapshotId, snapshot.id), eq(schema.koboSnapshotBooks.bookId, bookId)));
     } else {
-      await this.db
+      await executor
         .update(schema.koboSnapshotBooks)
         .set({ removedByDevice: true, synced: true })
         .where(and(eq(schema.koboSnapshotBooks.snapshotId, snapshot.id), eq(schema.koboSnapshotBooks.bookId, bookId)));

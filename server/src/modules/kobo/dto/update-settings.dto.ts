@@ -34,6 +34,10 @@ export class UpdateSettingsDto {
   storeSync?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  removeFromSyncedCollectionsOnDeviceDelete?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(500)

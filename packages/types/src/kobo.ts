@@ -18,6 +18,7 @@ export interface KoboSyncSettings {
   twoWayProgressSync: boolean;
   syncBookOrbitAnnotationsToKobo: boolean;
   storeSync: boolean;
+  removeFromSyncedCollectionsOnDeviceDelete: boolean;
 }
 
 export type KoboSyncHistoryEvent = "library_sync" | "book_download" | "progress_update" | "annotations_pull" | "annotations_push";
@@ -56,4 +57,5 @@ export interface UpdateKoboSyncSettingsRequest {
   twoWayProgressSync?: boolean;
   syncBookOrbitAnnotationsToKobo?: boolean;
   storeSync?: boolean;
+  removeFromSyncedCollectionsOnDeviceDelete?: boolean;
 }

@@ -360,6 +360,18 @@ describe('KoboSyncService', () => {
     expect(db.update).toHaveBeenCalled();
   });
 
+  it('removeBookFromDevice leaves collections alone when the preference is off', async () => {
+    const db = makeDb();
+    const service = makeService(db);
+    const removeBookFromSync = vi.spyOn(service, 'removeBookFromSync').mockResolvedValue(undefined);
+
+    await expect(service.removeBookFromDevice(1, 91, 3, false)).resolves.toBe(0);
+
+    expect(removeBookFromSync).toHaveBeenCalledWith(1, 91, 3);
+    expect(db.transaction).not.toHaveBeenCalled();
+    expect(db.delete).not.toHaveBeenCalled();
+  });
+
   it('createSnapshot seeds a device snapshot and uses a set-based query for removal tombstones', async () => {
     const db = makeDb({ insert: [[{ id: 55 }], []] });
     const service = makeService(db);

@@ -11,6 +11,7 @@ const settings = ref<KoboSyncSettings>({
   twoWayProgressSync: false,
   syncBookOrbitAnnotationsToKobo: false,
   storeSync: false,
+  removeFromSyncedCollectionsOnDeviceDelete: false,
 })
 let fetchPromise: Promise<void> | null = null
 

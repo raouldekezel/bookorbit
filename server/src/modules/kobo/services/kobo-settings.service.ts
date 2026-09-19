@@ -7,6 +7,9 @@ import * as schema from '../../../db/schema';
 
 type Db = NodePgDatabase<typeof schema>;
 
+// Kept in users.settings so the preference needs no column of its own.
+const REMOVE_FROM_SYNCED_COLLECTIONS_KEY = 'koboRemoveFromSyncedCollectionsOnDeviceDelete';
+
 export interface KoboSettings {
   readingThreshold: number;
   finishedThreshold: number;
@@ -16,6 +19,10 @@ export interface KoboSettings {
   twoWayProgressSync: boolean;
   syncBookOrbitAnnotationsToKobo: boolean;
   storeSync: boolean;
+}
+
+export interface KoboUserSettings extends KoboSettings {
+  removeFromSyncedCollectionsOnDeviceDelete: boolean;
 }
 
 @Injectable()
@@ -102,6 +109,29 @@ export class KoboSettingsService {
       syncBookOrbitAnnotationsToKobo: updated.syncBookOrbitAnnotationsToKobo,
       storeSync: updated.storeSync,
     };
+  }
+
+  async getUserSettings(userId: number): Promise<KoboUserSettings> {
+    const [settings, enabled] = await Promise.all([this.getSettings(userId), this.removesFromSyncedCollectionsOnDeviceDelete(userId)]);
+    return { ...settings, removeFromSyncedCollectionsOnDeviceDelete: enabled };
+  }
+
+  async updateUserSettings(userId: number, patch: Partial<KoboUserSettings>): Promise<KoboUserSettings> {
+    const { removeFromSyncedCollectionsOnDeviceDelete: requested, ...rowPatch } = patch;
+    const settings = await this.updateSettings(userId, rowPatch);
+    if (requested !== undefined) {
+      const value = JSON.stringify({ [REMOVE_FROM_SYNCED_COLLECTIONS_KEY]: requested });
+      await this.db
+        .update(schema.users)
+        .set({ settings: sql`${schema.users.settings} || ${value}::jsonb` })
+        .where(eq(schema.users.id, userId));
+    }
+    return { ...settings, removeFromSyncedCollectionsOnDeviceDelete: requested ?? (await this.removesFromSyncedCollectionsOnDeviceDelete(userId)) };
+  }
+
+  async removesFromSyncedCollectionsOnDeviceDelete(userId: number): Promise<boolean> {
+    const [user] = await this.db.select({ settings: schema.users.settings }).from(schema.users).where(eq(schema.users.id, userId)).limit(1);
+    return (user?.settings as Record<string, unknown> | undefined)?.[REMOVE_FROM_SYNCED_COLLECTIONS_KEY] === true;
   }
 
   private deliverySettingsChanged(
