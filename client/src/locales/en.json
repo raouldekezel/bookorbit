@@ -2352,6 +2352,8 @@
         "syncHighlightsHint": "Send highlights made in BookOrbit or KOReader to your Kobo. Kobo highlights are imported into BookOrbit even when this is off. Linked annotations sync edits and deletes both ways. Requires KEPUB delivery; the book on Kobo must be the KEPUB downloaded from BookOrbit.",
         "storeSync": "Include Kobo store titles",
         "storeSyncHint": "Also deliver books from your Kobo account, including Kobo Plus and purchases, alongside your BookOrbit library. Without this, only BookOrbit books reach the device. Store titles are downloaded from Kobo directly and are not added to your BookOrbit library.",
+        "removeFromSyncedCollections": "Remove from synced collections when deleted on Kobo",
+        "removeFromSyncedCollectionsHint": "Removing a book from your Kobo also removes it from all of your collections that sync to Kobo, so it is not delivered again and it leaves your other Kobo devices too. The catalog book and your reading data are kept. A book matched by a smart scope that syncs to Kobo is still delivered.",
         "convertKepub": "Convert to KEPUB",
         "convertKepubHint": "Send eligible EPUBs as KEPUB. This stays on when progress sync or BookOrbit-to-Kobo highlights are enabled. On the next Kobo sync, affected books are offered again as KEPUB downloads; remove any old EPUB copy if Kobo keeps opening it.",
         "forceHyphenation": "Force hyphenation",

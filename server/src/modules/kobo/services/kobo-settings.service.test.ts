@@ -29,8 +29,14 @@ function makeDb() {
   const updateSet = vi.fn().mockReturnValue({ where: updateWhere });
   const update = vi.fn().mockReturnValue({ set: updateSet });
   const execute = vi.fn().mockResolvedValue(undefined);
+  const selectLimit = vi.fn().mockResolvedValue([]);
+  const selectWhere = vi.fn().mockReturnValue({ limit: selectLimit });
+  const selectFrom = vi.fn().mockReturnValue({ where: selectWhere });
+  const select = vi.fn().mockReturnValue({ from: selectFrom });
 
   return {
+    select,
+    selectLimit,
     query: {
       koboSyncSettings: {
         findFirst,
@@ -238,5 +244,80 @@ describe('KoboSettingsService', () => {
     await expect(service.updateSettings(9, { readingThreshold: 99, finishedThreshold: 80 })).rejects.toThrow(
       'Reading threshold must be less than finished threshold',
     );
+  });
+
+  describe('removal from synced collections preference', () => {
+    const rowSettings = {
+      readingThreshold: 1,
+      finishedThreshold: 99,
+      convertToKepub: true,
+      forceEnableHyphenation: false,
+      kepubConversionLimitMb: 100,
+      twoWayProgressSync: false,
+      syncBookOrbitAnnotationsToKobo: false,
+      storeSync: false,
+    };
+
+    it('is off unless the user settings hold an explicit true', async () => {
+      const db = makeDb();
+      const service = new KoboSettingsService(db as never);
+
+      db.selectLimit.mockResolvedValueOnce([]);
+      await expect(service.removesFromSyncedCollectionsOnDeviceDelete(9)).resolves.toBe(false);
+      db.selectLimit.mockResolvedValueOnce([{ settings: { timezone: 'Europe/Brussels' } }]);
+      await expect(service.removesFromSyncedCollectionsOnDeviceDelete(9)).resolves.toBe(false);
+      db.selectLimit.mockResolvedValueOnce([{ settings: { koboRemoveFromSyncedCollectionsOnDeviceDelete: 'true' } }]);
+      await expect(service.removesFromSyncedCollectionsOnDeviceDelete(9)).resolves.toBe(false);
+      db.selectLimit.mockResolvedValueOnce([{ settings: { koboRemoveFromSyncedCollectionsOnDeviceDelete: true } }]);
+      await expect(service.removesFromSyncedCollectionsOnDeviceDelete(9)).resolves.toBe(true);
+    });
+
+    it('adds the preference to the settings served to the user', async () => {
+      const db = makeDb();
+      const service = new KoboSettingsService(db as never);
+      vi.spyOn(service, 'getSettings').mockResolvedValue(rowSettings);
+      db.selectLimit.mockResolvedValue([{ settings: { koboRemoveFromSyncedCollectionsOnDeviceDelete: true } }]);
+
+      await expect(service.getUserSettings(9)).resolves.toEqual({ ...rowSettings, removeFromSyncedCollectionsOnDeviceDelete: true });
+    });
+
+    it('stores a requested preference and leaves the row patch free of it', async () => {
+      const db = makeDb();
+      const service = new KoboSettingsService(db as never);
+      const updateSettings = vi.spyOn(service, 'updateSettings').mockResolvedValue({ ...rowSettings, storeSync: true });
+
+      await expect(service.updateUserSettings(9, { storeSync: true, removeFromSyncedCollectionsOnDeviceDelete: true })).resolves.toEqual({
+        ...rowSettings,
+        storeSync: true,
+        removeFromSyncedCollectionsOnDeviceDelete: true,
+      });
+      expect(updateSettings).toHaveBeenCalledWith(9, { storeSync: true });
+      expect(db.update).toHaveBeenCalledTimes(1);
+      expect(db.select).not.toHaveBeenCalled();
+    });
+
+    it('keeps the stored preference when the patch does not mention it', async () => {
+      const db = makeDb();
+      const service = new KoboSettingsService(db as never);
+      vi.spyOn(service, 'updateSettings').mockResolvedValue(rowSettings);
+      db.selectLimit.mockResolvedValue([{ settings: { koboRemoveFromSyncedCollectionsOnDeviceDelete: true } }]);
+
+      await expect(service.updateUserSettings(9, { storeSync: false })).resolves.toEqual({
+        ...rowSettings,
+        removeFromSyncedCollectionsOnDeviceDelete: true,
+      });
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('does not store the preference when the row update is rejected', async () => {
+      const db = makeDb();
+      const service = new KoboSettingsService(db as never);
+      vi.spyOn(service, 'updateSettings').mockRejectedValue(new Error('rejected'));
+
+      await expect(service.updateUserSettings(9, { readingThreshold: 99, removeFromSyncedCollectionsOnDeviceDelete: true })).rejects.toThrow(
+        'rejected',
+      );
+      expect(db.update).not.toHaveBeenCalled();
+    });
   });
 });

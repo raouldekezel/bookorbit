@@ -363,7 +363,8 @@ export class KoboSyncController {
   ) {
     const id = await this.bookIdentityService.resolveBookIdByEntitlementId(user.id, bookId);
     if (id === null) return this.proxyService.forward(req, reply, device.deviceToken);
-    await this.syncService.removeBookFromSync(user.id, device.deviceId, id);
+    const removeFromSyncedCollections = await this.settingsService.removesFromSyncedCollectionsOnDeviceDelete(user.id);
+    await this.syncService.removeBookFromDevice(user.id, device.deviceId, id, removeFromSyncedCollections);
     reply.status(HttpStatus.OK).send();
   }
 

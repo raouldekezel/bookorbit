@@ -36,6 +36,8 @@ describe('Kobo DTO validation', () => {
     expect((await getErrors(UpdateSettingsDto, { convertToKepub: 'true' })).length).toBeGreaterThan(0);
     expect((await getErrors(UpdateSettingsDto, { forceEnableHyphenation: 'false' })).length).toBeGreaterThan(0);
     expect((await getErrors(UpdateSettingsDto, { twoWayProgressSync: 'true' })).length).toBeGreaterThan(0);
+    expect((await getErrors(UpdateSettingsDto, { removeFromSyncedCollectionsOnDeviceDelete: true })).length).toBe(0);
+    expect((await getErrors(UpdateSettingsDto, { removeFromSyncedCollectionsOnDeviceDelete: 'true' })).length).toBeGreaterThan(0);
     expect((await getErrors(UpdateSettingsDto, { kepubConversionLimitMb: 0 })).length).toBeGreaterThan(0);
     expect((await getErrors(UpdateSettingsDto, { kepubConversionLimitMb: 501 })).length).toBeGreaterThan(0);
     expect((await getErrors(UpdateSettingsDto, { kepubConversionLimitMb: 10.5 })).length).toBeGreaterThan(0);
