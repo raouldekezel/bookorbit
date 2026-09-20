@@ -26,11 +26,12 @@ const STATE_UPDATE_ACK = {
 describe('KoboSyncController', () => {
   const settingsService = {
     getSettings: vi.fn(),
+    removesFromSyncedCollectionsOnDeviceDelete: vi.fn(),
   };
   const syncService = {
     getDelta: vi.fn(),
     getBookMetadata: vi.fn(),
-    removeBookFromSync: vi.fn(),
+    removeBookFromDevice: vi.fn(),
   };
   const readingStateService = {
     getRawState: vi.fn(),
@@ -583,10 +584,23 @@ describe('KoboSyncController', () => {
     expect(proxyService.forward).toHaveBeenNthCalledWith(1, req, reply, 'token-1');
   });
 
+  it('passes the collection removal preference to the device delete', async () => {
+    const req = { headers: { host: 'localhost:3000' }, protocol: 'http', hostname: 'localhost', socket: { localPort: 3000 } };
+    const reply = makeReply();
+    bookIdentityService.resolveBookIdByEntitlementId.mockResolvedValue(5);
+    settingsService.removesFromSyncedCollectionsOnDeviceDelete.mockResolvedValue(true);
+
+    await controller.deleteFromLibrary('5', { id: 4 } as never, { deviceId: 5, deviceToken: 'token-5' } as never, req as never, reply as never);
+
+    expect(syncService.removeBookFromDevice).toHaveBeenCalledWith(4, 5, 5, true);
+    expect(reply.status).toHaveBeenCalledWith(HttpStatus.OK);
+  });
+
   it('serves metadata, delete ack, and reading-state payloads for valid ids', async () => {
     const req = { headers: { host: 'localhost:3000' }, protocol: 'http', hostname: 'localhost', socket: { localPort: 3000 } };
     const reply = makeReply();
     syncService.getBookMetadata.mockResolvedValue([{ Title: 'Dune' }]);
+    settingsService.removesFromSyncedCollectionsOnDeviceDelete.mockResolvedValue(false);
     readingStateService.getRawState.mockResolvedValueOnce(null).mockResolvedValueOnce({ EntitlementId: '5' });
 
     await controller.getBookMetadata('5', { id: 4 } as never, { deviceToken: 'token-5' } as never, req as never, reply as never);
@@ -595,7 +609,8 @@ describe('KoboSyncController', () => {
     await controller.getReadingState('5', { id: 4 } as never, { deviceToken: 'token-5' } as never, req as never, reply as never);
 
     expect(syncService.getBookMetadata).toHaveBeenCalledWith(4, 5, 'token-5', 'http://localhost:3000');
-    expect(syncService.removeBookFromSync).toHaveBeenCalledWith(4, 5, 5);
+    expect(settingsService.removesFromSyncedCollectionsOnDeviceDelete).toHaveBeenCalledWith(4);
+    expect(syncService.removeBookFromDevice).toHaveBeenCalledWith(4, 5, 5, false);
     expect(reply.status).toHaveBeenCalledWith(HttpStatus.OK);
     expect(reply.send).toHaveBeenNthCalledWith(1, [{ Title: 'Dune' }]);
     expect(reply.send).toHaveBeenNthCalledWith(2);

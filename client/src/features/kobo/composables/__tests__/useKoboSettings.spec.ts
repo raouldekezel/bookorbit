@@ -26,6 +26,7 @@ function makeSettings(overrides: Partial<KoboSyncSettings> = {}): KoboSyncSettin
     twoWayProgressSync: false,
     syncBookOrbitAnnotationsToKobo: false,
     storeSync: false,
+    removeFromSyncedCollectionsOnDeviceDelete: false,
     ...overrides,
   }
 }
@@ -37,6 +38,25 @@ function makeResponse(data: unknown, ok = true): Response {
 describe('useKoboSettings', () => {
   beforeEach(() => {
     apiMock.mockReset()
+  })
+
+  it('defaults removal from synced collections to off before any fetch resolves', async () => {
+    const { settings } = await freshComposable()
+
+    expect(settings.value.removeFromSyncedCollectionsOnDeviceDelete).toBe(false)
+  })
+
+  it('round-trips the removal from synced collections preference', async () => {
+    apiMock.mockResolvedValue(makeResponse(makeSettings({ removeFromSyncedCollectionsOnDeviceDelete: true })))
+    const { settings, updateSettings } = await freshComposable()
+
+    await updateSettings({ removeFromSyncedCollectionsOnDeviceDelete: true })
+
+    expect(apiMock).toHaveBeenCalledWith(
+      '/api/v1/kobo/settings',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ removeFromSyncedCollectionsOnDeviceDelete: true }) }),
+    )
+    expect(settings.value.removeFromSyncedCollectionsOnDeviceDelete).toBe(true)
   })
 
   it('defaults store sync to off before any fetch resolves', async () => {

@@ -13,8 +13,8 @@ describe('KoboUserController', () => {
     revokeDevice: vi.fn(),
   };
   const settingsService = {
-    getSettings: vi.fn(),
-    updateSettings: vi.fn(),
+    getUserSettings: vi.fn(),
+    updateUserSettings: vi.fn(),
   };
   const historyService = {
     listForUser: vi.fn(),
@@ -43,13 +43,13 @@ describe('KoboUserController', () => {
   });
 
   it('delegates settings reads and writes with current user id', async () => {
-    settingsService.getSettings.mockResolvedValue({
+    settingsService.getUserSettings.mockResolvedValue({
       convertToKepub: true,
       forceEnableHyphenation: false,
       kepubConversionLimitMb: 100,
       twoWayProgressSync: false,
     });
-    settingsService.updateSettings.mockResolvedValue({
+    settingsService.updateUserSettings.mockResolvedValue({
       convertToKepub: true,
       forceEnableHyphenation: true,
       kepubConversionLimitMb: 150,
@@ -69,8 +69,8 @@ describe('KoboUserController', () => {
       twoWayProgressSync: true,
     });
 
-    expect(settingsService.getSettings).toHaveBeenCalledWith(5);
-    expect(settingsService.updateSettings).toHaveBeenCalledWith(5, { convertToKepub: false, twoWayProgressSync: true });
+    expect(settingsService.getUserSettings).toHaveBeenCalledWith(5);
+    expect(settingsService.updateUserSettings).toHaveBeenCalledWith(5, { convertToKepub: false, twoWayProgressSync: true });
   });
 
   it('delegates history reads with current user id and limit', async () => {

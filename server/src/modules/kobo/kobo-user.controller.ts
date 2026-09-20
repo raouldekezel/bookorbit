@@ -62,12 +62,12 @@ export class KoboUserController {
 
   @Get('settings')
   getSettings(@CurrentUser() user: RequestUser) {
-    return this.settingsService.getSettings(user.id);
+    return this.settingsService.getUserSettings(user.id);
   }
 
   @Patch('settings')
   updateSettings(@Body() dto: UpdateSettingsDto, @CurrentUser() user: RequestUser) {
-    return this.settingsService.updateSettings(user.id, dto);
+    return this.settingsService.updateUserSettings(user.id, dto);
   }
 
   @Get('history')
